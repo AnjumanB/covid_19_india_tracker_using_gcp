@@ -1,0 +1,99 @@
+SyntaxEditor Code Snippet
+
+### COVID-19 Tracker of India 
+ This repository describes the steps to build an interactive dashboard to track COVID-19 status of India. 
+Two public data sets are used to design the dashboard 
+ a) Data set of John Hopkins University.Click [here](https://console.cloud.google.com/marketplace/details/johnshopkins/covid19_jhu_global_cases) to get information of the data set.
+ b) COVID-19 Data set of Ministry of Home and Family Welfare , Govt of India. [Click here to view data set.](https://data.gov.in/major-indicator/covid-19-india-data-source-mohfw) 
+##### Tools Used  
+ - Google Big Query (For querying data set)
+ - Google Data Studio (For designing dashboard)
+##### Objective  
+- Show total number of confirmed , recovered cases, cases under treatment and death toll.
+ - Show day wise count for confirmed , recovered cases and death cases.
+ - Change in count in a single day for confirmed , recovered cases and death cases.
+ - Depict graphical representation of the above mentioned categories.
+ - Display state wise confirmed , recovered and death cases on Map along with pie chart with data filter. 
+ #### Design Steps
+ - First connect to Google Big Query Sandbox. [Click here](https://cloud.google.com/blog/products/data-analytics/query-without-a-credit-card-introducing-bigquery-sandbox) to know how to use Sandbox. Reason for using Big Query Sandbox is to access public data sets for free without providing opting a free tier or giving bank card details. Gmail id and some simple steps will serve the purpose.
+ - Once connected, search for public data set named  **covid19_jhu_csse**.This data set contains four tables namely **confirmed_cases**,**deaths**,**recovered_cases**,**summary**.
+table ***summary*** is used for this case.Other three tables contain date wise numbers of confirmed,death and recovered cases.Field names of ***summary***  are as follows
+**province_state
+country_region
+date
+latitude
+longitude
+location_geom
+confirmed
+deaths
+recovered
+fips
+admin2
+combined_key**
+ - Following query is designed to fetch data from the above mentioned data set. Run the same on Big Query editor.
+ `Select 
+date,
+coalesce(confirmed,null,0) as confirmed_cases,
+coalesce(deaths,null,0) as death_cases,
+coalesce(recovered,null,0) as recovered_cases,
+coalesce(confirmed-lag(confirmed) over (order by date asc),null,0) as difference_in_cofirmed_case,
+coalesce(deaths-lag(deaths) over (order by date asc),null,0) as difference_in_death_case,
+coalesce(recovered-lag(recovered) over (order by date asc),null,0) as difference_in_recovered_case,
+FROM `bigquery-public-data.covid19_jhu_csse.summary` where country_region='India' order by date;`    
+
+****Output****
+Sample 2 records are shown below
+
+|date  |confirmed_cases  |death_cases |recovered_cases |difference_in_cofirmed_case |difference_in_death_case |difference_in_recovered_case |
+|--|--|--|--|--|--|--|
+|2020-04-27  |29451  |939 |7137 |1561 |58 |614 |
+|2020-04-28  |31324  |1008 |7747 |1873 |69 |610 |
+
+***This data set is updated by the university handlers in every 24 hours. hence no requirement to update manually.***
+ - Opt for the option **Explore with Data Studio**. This may ask you for permission which is to be granted.
+ - This will open up Data Studio view, save the data source with suitable name.Say for example, name this data set as ***john_hopkins_datasource***.
+ - Next, records available on Ministry of Health and Family Welfare (MOHFW), GoI website are to be taken into consideration. Data set link is provided at the beginning of this document. Data have the following fields
+  **Name of State/UT, Total Confirmed Cases, Cured/ Discharged/ Migrated , Death, Date.**
+  
+ -  Records are to be downloaded in csv format from the website and then populated manually into a table created in Big Query on daily basis. Following steps describe table creation and data inserting processes.
+ - Switch to Google cloud window again. Create a data set example- **covid19_india_mohfw_data** under default My First Project (this is created by default while using Big Query sandbox).
+ - To create a table, click on the **Create table** option . Keep source as ***Upload*** and browse the csv file where you have stored data of MOHFW COVID-19  in your local machine. 
+ -  Give a name of the table to be created. It is kept as **summary** for this case with the following schema
+    **date: DATE,       state_ut: STRING, confirmed_cases: INTEGER,    recovered_cases: INTEGER,   deaths: INTEGER**
+    Click ***Edit as text*** and furnish the field with the schema mentioned above.
+ - Take care of two advance settings
+ a) If data have header then set **Header rows to skip** to 1 for excluding header.  
+ b) Table is to be created only once. MOHFW displays data day wise. Hence once you create a table then there is no need to create multiple tables containing same pattern of data for each other day. For latter dates create a table using the existing table name but select **append to table** from **Write preference** under **Advance options**. This appends the present data with the previously available records under the same existing table name.
+ 
+ - Here is a sample preview of the data after loading into table
+  
+|date|state_ut  |confirmed_cases  |recovered_cases  |deaths  |
+|--|--|--|--|--|
+|  2020-05-01|Bihar  |426 |82 |2
+|2020-05-01|Chandigarh|56|17|0|
+ - Execute the following query in BigQuery editor, explore the result in Data Studio and save the data source into Data Studio like before it is done in case of John Hopkins University data set. Name this data source as ***mohfw_data_source***.
+ 
+`select date ,state_ut,covid_cases.type_of_case,covid_cases.count
+FROM ``covid19-analysis-anju-12042020.covid19_india_mohfw_data.summary``
+cross join
+UNNEST([
+struct ('confirmed_cases' as type_of_case, confirmed_cases as count),
+struct ('recovered_cases' as type_of_case, recovered_cases as count),
+struct ('deaths' as type_of_case, deaths as count)
+]) covid_cases order by date asc;`
+
+**Output**
+|date|state_ut  |type_of_case |count
+|--|--|--|--|
+| 2020-05-17 | Goa |confirmed_cases|17
+| 2020-05-17 | Goa |recovered_cases|7
+|2020-05-17 | Goa |deaths|0
+ - Once you are done up to this step, then login to Data Studio using the same login which is used at the time of saving data sources. Saved data sources can be founded under **Data Sources** tab.
+ - Click on the **Create** option to open a blank report. You can connect the report to saved data sources. Add Bar charts, tables, maps, pie charts etc to your report as per your design objective. You also can link external websites to your report.Once you are done with the report design you can save and share the report link in your network. 
+[Click here](https://datastudio.google.com/s/nAquvvdmyFs)  to view report designed by the above mentioned steps.
+ 
+  **NB**
+ This is only one way of representing COVID-19 data on an interactive dashboard. Anyone can explore other queries to bring out different insights of the data using these or other data sets. The underlying process remains more or less the same. 
+
+  
+
