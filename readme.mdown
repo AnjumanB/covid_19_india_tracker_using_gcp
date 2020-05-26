@@ -1,4 +1,4 @@
-SyntaxEditor Code Snippet
+
 
 ### COVID-19 Tracker of India 
  This repository describes the steps to build an interactive dashboard to track COVID-19 status of India. 
